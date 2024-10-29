@@ -1,0 +1,38 @@
+{
+  "name": "RGZ #50001",
+  "image": "ipfs://xxxx/50001.png",
+  "attributes": [
+    {
+      "trait_type": "Background",
+      "value": "Just Right"
+    },
+    {
+      "trait_type": "Race",
+      "value": "High Energy Female"
+    },
+    {
+      "trait_type": "Mouth",
+      "value": "Fanged Smirk"
+    },
+    {
+      "trait_type": "Clothing",
+      "value": "Infernal Shade"
+    },
+    {
+      "trait_type": "Eyes",
+      "value": "Deep Thought"
+    },
+    {
+      "trait_type": "Hair/Hair Lock",
+      "value": "Golden Glamour Garden"
+    },
+    {
+      "trait_type": "Hat/Hat Lock",
+      "value": "Red Bitstream TecWing"
+    },
+    {
+      "trait_type": "Aura/Aura Lock",
+      "value": "Intertwined"
+    }
+  ]
+}
