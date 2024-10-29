@@ -3,74 +3,61 @@
 	import JSZip from 'jszip';
 	import * as XLSX from 'xlsx';
 	import { processCSVData } from './process';
+	import { validateData } from './validation';
 
 	let loading = false;
 	let result = null;
 	let error = null;
+	let validationStats = null;
+	let originalData = null;
 
 	async function handleFileUpload(event) {
-		const file = event.target.files[0];
-		if (!file) return;
+        const file = event.target.files[0];
+        if (!file) return;
 
-		loading = true;
-		error = null;
-		result = null;
+        loading = true;
+        error = null;
+        result = null;
+        validationStats = null;
 
-		try {
-			const fileExtension = file.name.split('.').pop().toLowerCase();
+        try {
+            const fileExtension = file.name.split('.').pop().toLowerCase();
+            let data;
+            
+            if (fileExtension === 'csv') {
+                // Handle CSV
+                const text = await file.text();
+                const parseResult = Papa.parse(text, { header: false });
+                data = parseResult.data;
+            } else if (['xlsx', 'xls'].includes(fileExtension)) {
+                // Handle Excel
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer);
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            } else {
+                throw new Error('Unsupported file format');
+            }
 
-			if (fileExtension === 'csv') {
-				// Handle CSV
-				Papa.parse(file, {
-					header: false,
-					skipEmptyLines: true,
-					complete: (results) => {
-						try {
-							const processedData = results.data.map((row) => {
-								const obj = {};
-								row.forEach((value, index) => {
-									obj[index] = value;
-								});
-								return obj;
-							});
-							result = processCSVData(processedData);
-						} catch (e) {
-							error = e.message;
-						} finally {
-							loading = false;
-						}
-					},
-					error: (err) => {
-						error = err.message;
-						loading = false;
-					}
-				});
-			} else if (['xlsx', 'xls'].includes(fileExtension)) {
-				// Handle Excel
-				const arrayBuffer = await file.arrayBuffer();
-				const workbook = XLSX.read(arrayBuffer);
-				const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-				const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            originalData = data;
+            const processedData = data.map(row => {
+                const obj = {};
+                row.forEach((value, index) => {
+                    obj[index] = value?.toString() || '';
+                });
+                return obj;
+            });
 
-				// Convert Excel data to match CSV format
-				const processedData = data.map((row) => {
-					const obj = {};
-					row.forEach((value, index) => {
-						obj[index] = value?.toString() || ''; // Convert to string and handle null/undefined
-					});
-					return obj;
-				});
+            result = processCSVData(processedData);
+            validationStats = validateData(result, data);
 
-				result = processCSVData(processedData);
-			} else {
-				throw new Error('Unsupported file format. Please upload a CSV or Excel file.');
-			}
-		} catch (e) {
-			console.error('Error processing file:', e);
-			error = e.message;
-			loading = false;
-		}
-	}
+        } catch (e) {
+            console.error('Error:', e);
+            error = e.message;
+        } finally {
+            loading = false;
+        }
+    }
 
 	async function downloadAsZip(nfts) {
 		const zip = new JSZip();
@@ -132,6 +119,68 @@
 		<p class="text-red-500">Error: {error}</p>
 	{/if}
 
+	{#if validationStats}
+	<div class="mt-4 p-4 bg-gray-50 rounded border">
+		<h3 class="text-lg font-semibold mb-3">Validation Results:</h3>
+		
+		<div class="space-y-2">
+			<div class="flex justify-between">
+				<span>Total NFTs Processed:</span>
+				<span class="font-medium">{validationStats.totalNFTs}</span>
+			</div>
+			
+			<div class="flex justify-between">
+				<span>NFT Numbers Matched:</span>
+				<span class="font-medium {validationStats.nftNumbersMatched === validationStats.totalNFTs ? 'text-green-600' : 'text-red-600'}">
+					{validationStats.nftNumbersMatched} / {validationStats.totalNFTs}
+				</span>
+			</div>
+
+			<div>
+				<span class="font-medium">Attribute Distribution:</span>
+				<ul class="ml-4">
+					{#each Object.entries(validationStats.attributeCounts) as [count, number]}
+						<li>{number} NFTs have {count} attributes</li>
+					{/each}
+				</ul>
+			</div>
+
+			{#if validationStats.missingAttributes.length > 0}
+				<div class="text-red-600">
+					<span class="font-medium">Missing Attributes:</span>
+					<ul class="ml-4">
+						{#each validationStats.missingAttributes as attr}
+							<li>{attr}</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+
+			{#if validationStats.extraAttributes.length > 0}
+				<div class="text-orange-600">
+					<span class="font-medium">Extra Attributes:</span>
+					<ul class="ml-4">
+						{#each validationStats.extraAttributes as attr}
+							<li>{attr}</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+
+			{#if validationStats.potentialIssues.length > 0}
+				<div class="text-red-600">
+					<span class="font-medium">Potential Issues:</span>
+					<ul class="ml-4">
+						{#each validationStats.potentialIssues as issue}
+							<li>{issue}</li>
+						{/each}
+					</ul>
+				</div>
+			{/if}
+		</div>
+	</div>
+{/if}
+
 	{#if result && result.length > 0}
 		<div class="mt-4">
 			<div class="flex flex-col gap-4">
@@ -174,4 +223,5 @@
 			</div>
 		</div>
 	{/if}
+
 </div>

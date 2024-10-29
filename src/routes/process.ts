@@ -2,6 +2,9 @@ export function processCSVData(data) {
 	try {
 		// console.log('Initial data:', data); // Debug log
 		const result = [];
+		let error = null;
+		let validationStats = null;
+		let originalData = null;
 		let currentSection = [];
 		let headers = null;
 
